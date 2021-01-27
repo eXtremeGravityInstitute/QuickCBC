@@ -2001,7 +2001,7 @@ void MCMC_all(struct Net *net, int *mxc, int M, FILE *chain, double **paramx, in
             #pragma omp parallel for
             for(k=1; k <= NC; k++)
             {
-                update(k, net, het, logLx, logPx, rhox, paramx, paramy, min, max, who, heat, history, global, freq, D, SN, ejump, evec, N, Tobs, cv, av, rvec[k]);
+                update(k, net, het, logLx, logPx, rhox, paramx, paramy, min, max, who, heat, history, global, freq, D, SN, SM, ejump, evec, N, Tobs, cv, av, rvec[k]);
             }
             
             // add to the history file
@@ -2082,11 +2082,11 @@ void MCMC_all(struct Net *net, int *mxc, int M, FILE *chain, double **paramx, in
             Mchirp = exp(paramx[q][0])/MSUN_SI;
             Mtot = exp(paramx[q][1])/MSUN_SI;
             
-            printf("%d %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", mc/100, logLx[q], Mchirp, Mtot, paramx[q][4], paramx[q][5], paramx[q][6], paramx[q][7], paramx[q][8], paramx[q][9], \
+            printf("%d %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n", mc, logLx[q], Mchirp, Mtot, paramx[q][4], paramx[q][5], paramx[q][6], paramx[q][7], paramx[q][8], paramx[q][9], \
                    (double)(sacc)/(double)(scount), (double)(av[1][1])/(double)(cv[1][1]), (double)(av[2][1])/(double)(cv[2][1]), (double)(av[3][1])/(double)(cv[3][1]), (double)(av[4][1])/(double)(cv[4][1]));
             //printf("%d %f %f %f %f %f\n", mc/100, paramx[q][5], paramx[q][6], paramx[q][7], paramx[q][8], paramx[q][9]);
             
-            printf("%d ", mc/100);
+            printf("%d ", mc);
             for(k=1; k <= NC; k++)
             {
                 q = who[k];
@@ -2170,7 +2170,7 @@ void MCMC_all(struct Net *net, int *mxc, int M, FILE *chain, double **paramx, in
     
 }
 
-void update(int k, struct Net *net, struct Het *het, double *logLx, double *logPx, double **rhox, double **paramx, double **paramy, double *min, double *max, int *who, double *heat, double ***history, double ***global, RealVector *freq, double **D, double **SN, double **ejump, double ***evec, int N, double Tobs, int **cv, int **av, gsl_rng *r)
+void update(int k, struct Net *net, struct Het *het, double *logLx, double *logPx, double **rhox, double **paramx, double **paramy, double *min, double *max, int *who, double *heat, double ***history, double ***global, RealVector *freq, double **D, double **SN, double **SM, double **ejump, double ***evec, int N, double Tobs, int **cv, int **av, gsl_rng *r)
     {
         int q, i, j;
         double qx, qy, a, b, c;
@@ -2303,8 +2303,9 @@ void update(int k, struct Net *net, struct Het *het, double *logLx, double *logP
         {
             logLy = 0.0;
             //if(lhold == 0) logLy = log_likelihood_full(net, D, paramy[q], freq, SN, rhoy, N, Tobs);
-            //x = log_likelihood_test(net, het, D, paramy[q], freq, SN, N, Tobs);
+            //x = log_likelihood_test(net, het, D, paramy[q], freq, SN, SM, N, Tobs);
             if(lhold == 0) logLy = log_likelihood_het(net, het, paramy[q], Tobs);
+            //printf("%f %f %f\n", x, logLy, x-logLy);
         }
         
         // variable in MCMC is x=logD, so p(x) = dD/dx p(D) = D p(D) = D^3
@@ -4161,20 +4162,17 @@ void SNRvsf(struct Net *net, double **D, double *params, RealVector *freq, doubl
     
 }
 
-double log_likelihood_test(struct Net *net, struct Het *het, double **D, double *params, RealVector *freq, double **SN, int N, double Tobs)
+double log_likelihood_test(struct Net *net, struct Het *het, double **D, double *params, RealVector *freq, double **SN, double **SM, int N, double Tobs)
 {
     int i, j, MM;
     double logL;
     double **twave;
     double **res, **rwave, **dh;
     double *rc, *rs;
-    double HH, HD, x;
+    double HH, HHS, HD, x;
     int imin, imax;
     
     MM = het->MM;
-    
-        rc = double_vector(MM);
-        rs = double_vector(MM);
     
         twave = double_matrix(net->Nifo,N);
         rwave = double_matrix(net->Nifo,N);
@@ -4191,27 +4189,6 @@ double log_likelihood_test(struct Net *net, struct Het *het, double **D, double 
                res[i][j] = D[i][j] - rwave[i][j];
                dh[i][j] =  rwave[i][j]-twave[i][j];
           }
-           
-          
-          // apply the same Tukey window to the resdiuals as was done in heterodyne
-          rc[0] = res[i][0];
-          rs[0] = 0.0;
-          for(j = 1; j < MM; j++)
-          {
-            rc[j] = res[i][j];
-            rs[j] = res[i][N-j];
-          }
-
-            tukey(rc,0.05,MM);
-            tukey(rs,0.05,MM);
-            
-            res[i][0] = rc[0];
-            for(j = 1; j < MM; j++)
-            {
-                res[i][j] = rc[j];
-                res[i][N-j] = rs[j];
-            }
-            
         }
         
         logL = het->logLb;
@@ -4227,8 +4204,6 @@ double log_likelihood_test(struct Net *net, struct Het *het, double **D, double 
         free_double_matrix(twave,net->Nifo);
         free_double_matrix(rwave,net->Nifo);
         free_double_matrix(res,net->Nifo);
-        free_double_vector(rc);
-        free_double_vector(rs);
     
     return(logL);
     
@@ -4276,15 +4251,105 @@ double log_likelihood_full(struct Net *net, double **D, double *params, RealVect
 
 void freehet(struct Net *net, struct Het *het)
 {
+    free_double_matrix(het->S0,net->Nifo);
+    free_double_matrix(het->S1,net->Nifo);
     free_double_matrix(het->AS,net->Nifo);
+    free_double_matrix(het->SN,net->Nifo);
     free_double_matrix(het->amp,net->Nifo);
     free_double_matrix(het->phase,net->Nifo);
     free_double_matrix(het->rc,net->Nifo);
     free_double_matrix(het->rs,net->Nifo);
+    free_double_tensor(het->lc,net->Nifo,het->ell);
+    free_double_tensor(het->ls,net->Nifo,het->ell);
     DestroyRealVector(het->freq);
     free_double_vector(het->pref);
-    free_double_vector(het->scale);
 }
+
+
+
+double log_likelihood_het(struct Net *net, struct Het *het, double *params, double Tobs)
+{
+    double **amp, **phase;
+    double **hc, **hs;
+    double HH, HR, logL;
+    double x, y;
+    double L0,L1;
+    double **cc, **ss;
+    int j, id, M;
+    
+    logL = 0.0;
+    
+    if(lhold == 0)
+    {
+    
+    M = het->M;
+
+    amp = double_matrix(net->Nifo,M);
+    phase = double_matrix(net->Nifo,M);
+    cc = double_matrix(net->Nifo,M);
+    ss = double_matrix(net->Nifo,M);
+    hc = double_matrix(net->Nifo,M);
+    hs = double_matrix(net->Nifo,M);
+    
+    fullphaseamp(net, amp, phase, het->freq, params, 2*M);
+    
+    logL = het->logLb;
+    for(id = 0; id < net->Nifo; id++)
+    {
+        for(j = 0; j < M; j++)
+        {
+            cc[id][j] = 2.0*(het->amp[id][j]-amp[id][j]*cos(het->phase[id][j]-phase[id][j]));
+            ss[id][j] = 2.0*amp[id][j]*sin(het->phase[id][j]-phase[id][j]);
+            hc[id][j] = cc[id][j]/het->AS[id][j];
+            hs[id][j] = ss[id][j]/het->AS[id][j];
+            cc[id][j] = cc[id][j]*cc[id][j]+ss[id][j]*ss[id][j];
+        }
+        
+        HH = 0.0;
+        HR = 0.0;
+        x = 0.0;
+        y = 0.0;
+        for(j = 0; j < M-1; j++)
+        {
+            L0 = (cc[id][j+1]+cc[id][j])/2.0;
+            L1 = (cc[id][j+1]-cc[id][j])/2.0;
+            HH += L0*het->S0[id][j]+L1*het->S1[id][j];
+            x += cc[id][j+1]/het->SN[id][j];  // correction for overcount
+            
+            L0 = (hc[id][j+1]+hc[id][j])/2.0;
+            L1 = (hc[id][j+1]-hc[id][j])/2.0;
+            HR += L0*het->lc[id][0][j]+L1*het->lc[id][1][j];
+            y += hc[id][j+1]*het->rc[id][j+1]; // correction for overcount
+            
+            L0 = (hs[id][j+1]+hs[id][j])/2.0;
+            L1 = (hs[id][j+1]-hs[id][j])/2.0;
+            HR += L0*het->ls[id][0][j]+L1*het->ls[id][1][j];
+            y += hs[id][j+1]*het->rs[id][j+1]; // correction for overcount
+        
+        }
+        
+        // correction for overcount of edge values
+        HH -= x;
+        HR -= y;
+        
+        logL -= (HR+0.5*HH);
+        
+        //printf("Het %d %f %f %f %f\n", id, HH, HR, x, y);
+        
+        
+    }
+        
+    free_double_matrix(hc,net->Nifo);
+    free_double_matrix(hs,net->Nifo);
+    free_double_matrix(amp,net->Nifo);
+    free_double_matrix(phase,net->Nifo);
+        
+    }
+    
+    return(logL);
+    
+}
+
 
 void heterodyne(struct Net *net, struct Het *het, double **D, double *params, RealVector *freq, double **SN, double **SM, int N, double Tobs)
 {
@@ -4294,36 +4359,42 @@ void heterodyne(struct Net *net, struct Het *het, double **D, double *params, Re
     double cp, sp;
     double **RC, **RS;
     double logL, HH, HR;
-    int M, MM, ds;
+    int M, MM, ds, ell;
+    
+    ell = 2;  // Legendre order (max is ell-1). Currently only set up for ell=2
     
     f = fringdown(params);  // ringdown frequency
-    fstop = pow(2.0,floor(log2(2.0*f))+1.0); // stopping frequency - smallest power of 2 that exceeds twice the ringdown frequency
+    fstop = 2*f; // twice the ringdown frequency
     if(fstop < 64.0) fstop = 64.0; // just to be safe
     
      //printf("%f %f\n", f, fstop);
     
+    // With the piecewise Legendre polynomial approach it is not necessary to use powers of two or equal sized frequency bins.
+    
+    // fres is now the spacing between samples. The integration region is ell*fres wide.
+    
     MM = (int)(fstop*Tobs); // Covers the signal range
     if(MM > N/2) MM = N/2;  // can't exceed Nyqusit
-   
     ds = (int)(Tobs*fres);  // The downsample amount. Set by the frequency resolution fres. Default fres = 4 Hz.
-    
-    M = MM/ds;  // number of points used in the heterodyne
-    
-    // scaling factors
-    het->hh = 8.0*(double)(ds*ds)/(double)(N);
-    het->hr = 8.0*(double)(ds)/(double)(N);
+    M = MM/ds +1 ;  // number of points used in the heterodyne
     
     //printf("%d %d %d %d\n", N/2, MM, M, ds);
     
     het->M = M;
     het->MM = MM;
+    het->ell = ell;
+    
+    het->S0 = double_matrix(net->Nifo,M);
+    het->S1 = double_matrix(net->Nifo,M);
     het->AS = double_matrix(net->Nifo,M);
+    het->SN = double_matrix(net->Nifo,M);
     het->amp = double_matrix(net->Nifo,M);
     het->phase = double_matrix(net->Nifo,M);
     het->rc = double_matrix(net->Nifo,M);
     het->rs = double_matrix(net->Nifo,M);
+    het->lc = double_tensor(net->Nifo,ell,M);
+    het->ls = double_tensor(net->Nifo,ell,M);
     het->freq = CreateRealVector(M);
-    het->scale = double_vector(net->Nifo);
     het->pref = double_vector(NP);  // keep a copy of the parameters used for the heterodyne (used for testing)
     
     for(j = 0; j < NP; j++) het->pref[j] = params[j];
@@ -4340,30 +4411,41 @@ void heterodyne(struct Net *net, struct Het *het, double **D, double *params, Re
     fullphaseamp(net, ampb, phaseb, freq, params, N);
     
     // store the downsampled frequency array
-    for(j = 0; j < MM; j++)
+    for(j = 0; j < M; j++)
     {
-       i = j-ds/2;
-       if(i%ds == 0)
-       {
-           n = i/ds;
-           het->freq->data[n] = freq->data[j];
-       }
+        n = j*ds;
+        het->freq->data[j] = freq->data[n];
     }
     
-    // store the downsampled smooth ASD, and the reference amplitude and phase
+    // store the downsampled smooth ASD and full PSD
+    // store the downsampled reference amplitude and phase
+    for(id = 0; id < net->Nifo; id++)
+       {
+           for(j = 0; j < M; j++)
+              {
+                n = j*ds;
+                het->AS[id][j] = sqrt(SM[id][n]);
+                het->SN[id][j] = SN[id][n];
+                het->amp[id][j] = ampb[id][n];
+                het->phase[id][j] = phaseb[id][n];
+              }
+       }
+    
+  
+    // Legendre polynomial expansion of 1/SN across each frequency band.
+    // Zeroth order, S0, is pretty much good enough
     for(id = 0; id < net->Nifo; id++)
     {
-     for(j = 0; j < MM; j++)
-     {
-        i = j-ds/2;
-        if(i%ds == 0)
+      for(j = 0; j < M; j++)
         {
-            n = i/ds;
-            het->amp[id][n] = ampb[id][j];
-            het->phase[id][n] = phaseb[id][j];
-            het->AS[id][n] = sqrt(SM[id][j]);
+           het->S0[id][j] = 0.0;
+           het->S1[id][j] = 0.0;
+           for(n = 0; n <= ds; n++)
+            {
+                het->S0[id][j] += 1.0/SN[id][n+j*ds];
+                het->S1[id][j] += (1.0-(double)(2*n)/(double)(ds))/SN[id][n+j*ds];
+            }
         }
-     }
     }
     
     // form up resdiual
@@ -4382,22 +4464,6 @@ void heterodyne(struct Net *net, struct Het *het, double **D, double *params, Re
 
     het->logLb = logL;
     
-    // compute ratios between HH normalization with and without lines
-    // use this factor in place of recomouting the line affected regions
-    // only approximate, but a good approximation that pnly impacts the distance
-    for(id = 0; id < net->Nifo; id++)
-       {
-           x = 0.0;
-           y = 0.0;
-           for(j = 1; j < MM; j++)
-           {
-             z = (hb[id][j]*hb[id][j] +  hb[id][N-j]*hb[id][N-j]);
-             x += z/SN[id][j];
-             y += z/SM[id][j];
-           }
-           het->scale[id] = x/y;
-       }
-    
     for(id = 0; id < net->Nifo; id++)
     {
         RC[id][0] = 0.0;
@@ -4410,24 +4476,29 @@ void heterodyne(struct Net *net, struct Het *het, double **D, double *params, Re
         RC[id][j] = 2.0*(rb[id][j]*cp+rb[id][N-j]*sp)*x;
         RS[id][j] = 2.0*(-rb[id][j]*sp+rb[id][N-j]*cp)*x;
       }
-        tukey(RC[id],0.05,MM);
-        tukey(RS[id],0.05,MM);
-        gsl_fft_real_radix2_transform(RC[id], 1, MM);
-        gsl_fft_real_radix2_transform(RS[id], 1, MM);
     }
+    
+    // Legendre coefficients for hetrodyned residual
     
     for(id = 0; id < net->Nifo; id++)
     {
-    // store slow portion of hetrodyned residual
-    het->rc[id][0] = RC[id][0];
-    het->rs[id][0] = RS[id][0];
-    for(j = 1; j < M/2; j++)
-    {
-        het->rc[id][j] = RC[id][j];
-        het->rc[id][M-j] = RC[id][MM-j];
-        het->rs[id][j] = RS[id][j];
-        het->rs[id][M-j] = RS[id][MM-j];
-    }
+        for(j = 0; j < M; j++)
+        {
+            het->rc[id][j] = RC[id][j*ds];
+            het->rs[id][j] = RS[id][j*ds];
+            
+            het->lc[id][0][j] = 0.0;
+            het->lc[id][1][j] = 0.0;
+            het->ls[id][0][j] = 0.0;
+            het->ls[id][1][j] = 0.0;
+           for(n = 0; n <= ds; n++)
+            {
+                het->lc[id][0][j] += RC[id][n+j*ds];
+                het->lc[id][1][j] += (1.0-(double)(2*n)/(double)(ds))*RC[id][n+j*ds];
+                het->ls[id][0][j] += RS[id][n+j*ds];
+                het->ls[id][1][j] += (1.0-(double)(2*n)/(double)(ds))*RS[id][n+j*ds];
+            }
+        }
     }
     
     free_double_matrix(RC,net->Nifo);
@@ -4437,68 +4508,6 @@ void heterodyne(struct Net *net, struct Het *het, double **D, double *params, Re
     free_double_matrix(ampb,net->Nifo);
     free_double_matrix(phaseb,net->Nifo);
         
-    
-}
-
-double log_likelihood_het(struct Net *net, struct Het *het, double *params, double Tobs)
-{
-    double **amp, **phase;
-    double **hc, **hs;
-    double HH, HR, logL;
-    double x, y;
-    int j, id, M;
-    
-    logL = 0.0;
-    
-    if(lhold == 0)
-    {
-    
-    M = het->M;
-    
-    amp = double_matrix(net->Nifo,M);
-    phase = double_matrix(net->Nifo,M);
-    hc = double_matrix(net->Nifo,M);
-    hs = double_matrix(net->Nifo,M);
-    
-    fullphaseamp(net, amp, phase, het->freq, params, 2*M);
-    
-    for(id = 0; id < net->Nifo; id++)
-    {
-      for(j = 0; j < M; j++)
-        {
-            hc[id][j] = 2.0*(het->amp[id][j]-amp[id][j]*cos(het->phase[id][j]-phase[id][j]))/het->AS[id][j];
-            hs[id][j] = 2.0*amp[id][j]*sin(het->phase[id][j]-phase[id][j])/het->AS[id][j];
-        }
-        gsl_fft_real_radix2_transform(hc[id], 1, M);
-        gsl_fft_real_radix2_transform(hs[id], 1, M);
-    }
-        
-    logL = het->logLb;
-    for(id = 0; id < net->Nifo; id++)
-    {
-     HH = 0.5*(hc[id][0]*hc[id][0]+hs[id][0]*hs[id][0]);
-     HR = 0.5*(hc[id][0]*het->rc[id][0]+hs[id][0]*het->rs[id][0]);
-     for(j = 1; j < M/2; j++)
-      {
-        x = hc[id][j]*hc[id][j]+hc[id][M-j]*hc[id][M-j]+hs[id][j]*hs[id][j]+hs[id][M-j]*hs[id][M-j];
-        y = hc[id][j]*het->rc[id][j]+hc[id][M-j]*het->rc[id][M-j]+hs[id][j]*het->rs[id][j]+hs[id][M-j]*het->rs[id][M-j];
-        HH += x;
-        HR += y;
-      }
-        HH *= het->hh*het->scale[id];  // apply FFT scaling and the approximate line correction
-        HR *= het->hr; // apply FFT scaling
-        //printf("Het %d %f %f\n", id, HH, HR);
-        logL -= (HR+0.5*HH);
-    }
-    
-    free_double_matrix(hc,net->Nifo);
-    free_double_matrix(hs,net->Nifo);
-    free_double_matrix(amp,net->Nifo);
-    free_double_matrix(phase,net->Nifo);
-        
-    }
-    
-    return(logL);
     
 }
 
