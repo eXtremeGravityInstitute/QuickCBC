@@ -28,15 +28,20 @@ struct Het
 {
     int M;
     int MM;
+    int ell;
     double hh;
     double hr;
     double logLb;
+    double **S0;
+    double **S1;
     double **AS;
+    double **SN;
     double **amp;
     double **phase;
     double **rc;
     double **rs;
-    double *scale;
+    double ***lc;
+    double ***ls;
     double *pref;
     RealVector *freq;
 };
@@ -82,7 +87,7 @@ double log_likelihood_full(struct Net *net, double **D, double *params, RealVect
 double log_likelihood_ext(struct Net *net, double **D, double *params, RealVector *freq, double *hcos, double *hsin, double **SN, double *rho, int N, double Tobs);
 double log_likelihood_max(struct Net *net, double **D, double *params, RealVector *freq, double **SN, int N, double Tobs, double tmin, double tmax, int pflag);
 double log_likelihood_penalized(int ii, double *params, double *D, double *H, double *AU, double *PU, double *TDU, double *SN, int N, double Tobs, int pflag);
-double log_likelihood_test(struct Net *net, struct Het *het, double **D, double *params, RealVector *freq, double **SN, int N, double Tobs);
+double log_likelihood_test(struct Net *net, struct Het *het, double **D, double *params, RealVector *freq, double **SN, double **SM, int N, double Tobs);
 
 void jacobi(double **a, int n, double e[], double **v, int *nrot);
 
@@ -151,7 +156,7 @@ void skymcmc(struct Net *net, int MCX, int *mxc, FILE *chain, double **paramx, d
 
 void updatei(int k, struct Net *net, int lmax, double *logLx, double **paramx, double **paramy, double *min, double *max, double *Fscale, int *who, double *heat, double ***history, double ***global, RealVector *freq, double **D, double **SN, double **ejump, double ***evec, int N, double Tobs, int **cv, int **av, gsl_rng *r);
 
-void update(int k, struct Net *net, struct Het *het, double *logLx, double *logPx, double **rhox, double **paramx, double **paramy, double *min, double *max, int *who, double *heat, double ***history, double ***global, RealVector *freq, double **D, double **SN, double **ejump, double ***evec, int N, double Tobs, int **cv, int **av, gsl_rng *r);
+void update(int k, struct Net *net, struct Het *het, double *logLx, double *logPx, double **rhox, double **paramx, double **paramy, double *min, double *max, int *who, double *heat, double ***history, double ***global, RealVector *freq, double **D, double **SN, double **SM, double **ejump, double ***evec, int N, double Tobs, int **cv, int **av, gsl_rng *r);
 
 int *int_vector(int N);
 void free_int_vector(int *v);
