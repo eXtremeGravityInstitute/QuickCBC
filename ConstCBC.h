@@ -32,7 +32,7 @@
 
 #define fmax 1024.0            // Frequency range used in analysis
 #define fmin 16.0
-#define fres 4.0               // Frequency resolution used in heterodyne
+#define fres 2.0               // Frequency resolution used in heterodyne
 
 #define DLmax 1.0e10          // Maximum  distance in pc
 #define DLmin 1.0e6           // Minimum  distance in pc
@@ -57,7 +57,7 @@
 #define printQ  0     // Set to 1 to print Qscans during cleaning phase
 #define Qprint 8.0    // Q used to make output scans
 
-#define Pmimic 1      // set to 1 to mimic precession priors on spin aligned magnitude, zero otherwise.
+#define Pmimic 0      // set to 1 to mimic precession priors on spin aligned magnitude, zero otherwise.
 #define lhold 0       // set to 0 for normal running, set to 1 for prior recovery test
 
 
@@ -65,12 +65,12 @@
 #define NP 11          // total number of entries in the full parameter arrays NX+4
 #define NS 7           // number of quasi-extrinsic parameters (alpha, sin(delta), psi, ellipticity, scale, phi0=2*phic, dt)
 #define NC 12           // number of chains
-#define NCC 4          // number of cold chains
+#define NCC 4         // number of cold chains
 #define NH 1000        // length of history
 #define NQ 4           // number of mass ratios in global proposal
 #define NM 1000        // number of chirp masses in global proposal
 #define Nsearch 4000     // iterations for search
-#define Nintrinsic 10000  // iterations for intrinsic refinement
-#define Nsky 1000000      // iterations for sky mapping
-#define Nall 400000       // iterations for full MCMC
+#define Nintrinsic 5000  // iterations for intrinsic refinement
+#define Nsky 500000      // iterations for sky mapping
+#define Nall 200000       // iterations for full MCMC
 
