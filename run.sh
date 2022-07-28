@@ -55,6 +55,7 @@ gcc -o skydensity skydensity.c -lgsl
 clang -Xpreprocessor -fopenmp -lomp -w -o QuickCBC QuickCBC.c Utilities.c IMRPhenomD_internals.c IMRPhenomD.c -lgsl -lgslcblas  -lm
 
 mkdir waves
+mkdir specs
 
 if [ "$nifo" -eq 1 ]; then
 ./SpecFit $1 $trig $3 1024
